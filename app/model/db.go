@@ -60,16 +60,20 @@ func setupTables() {
 				CREATE TABLE IF NOT EXISTS comment (
 					id INTEGER PRIMARY KEY ASC NOT NULL,
 					site TEXT NOT NULL,
-					text TEXT NOT NULL,
+					thread_id INTEGER NOT NULL,
+					response_to INTEGER NULL,
+					left INTEGER NOT NULL,
+					right INTEGER NOT NULL,
 					ctime DATETIME NOT NULL,
 					mtime DATETIME NOT NULL,
+					text TEXT NOT NULL,
 					website TEXT NOT NULL,
 					author TEXT NOT NULL,
 					email TEXT NOT NULL
 				);
 
-				CREATE INDEX comment_site_ctime
-				ON comment (site, ctime);`
+				CREATE INDEX comment_site_thread_id
+				ON comment (site, thread_id);`
 		//fallthrough
 	}
 

@@ -9,10 +9,7 @@ import (
 )
 
 func ListComments(w http.ResponseWriter, r *http.Request) {
-	comments, err := model.GetComments(
-		"WHERE site = ?",
-		r.URL.Query().Get("site"),
-	)
+	comments, err := model.GetComments(r.URL.Query().Get("site"))
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return

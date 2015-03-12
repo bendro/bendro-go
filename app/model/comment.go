@@ -6,23 +6,31 @@ import (
 )
 
 type Comment struct {
-	Id      int64     `json:"id"`
-	Text    string    `json:"text,omitempty"`
-	Ctime   time.Time `json:"ctime,omitempty"`
-	Mtime   time.Time `json:"mtime,omitempty"`
-	Website string    `json:"website,omitempty"`
-	Author  string    `json:"author,omitempty"`
-	EMail   string    `json:"email,omitempty"`
-	Site    string    `json:"site,omitempty"`
+	Id         int64     `json:"id"`
+	Site       string    `json:"site,omitempty"`
+	ThreadId   int64     `json:"threadId"`
+	ResponseTo *int64    `json:"responseTo"`
+	Left       int64     `json:"left"`
+	Right      int64     `json:"right"`
+	Ctime      time.Time `json:"ctime,omitempty"`
+	Mtime      time.Time `json:"mtime,omitempty"`
+	Text       string    `json:"text,omitempty"`
+	Website    string    `json:"website,omitempty"`
+	Author     string    `json:"author,omitempty"`
+	EMail      string    `json:"email,omitempty"`
 }
 
-func GetComments(quary string, quaryArgs ...interface{}) (comments []*Comment, err error) {
+func GetComments(site string) (comments []*Comment, err error) {
 	err = tx(func(t *sql.Tx) {
 		rows, err := t.Query(`
-			SELECT id, text, ctime, mtime, website, author, email, site
-			FROM comment
-			`+quary+";",
-			quaryArgs...,
+			SELECT
+				c.id, c.site, c.thread_id, c.response_to, c.left, c.right, c.ctime,
+				c.mtime, c.text, c.website, c.author, c.email
+			FROM comment AS c
+			INNER JOIN comment AS fc ON fc.id = c.thread_id
+			WHERE c.site = ?
+			ORDER BY fc.ctime, fc.id, c.left;`,
+			site,
 		)
 		if err != nil {
 			panic(err)
@@ -34,13 +42,17 @@ func GetComments(quary string, quaryArgs ...interface{}) (comments []*Comment, e
 
 			err := rows.Scan(
 				&c.Id,
-				&c.Text,
+				&c.Site,
+				&c.ThreadId,
+				&c.ResponseTo,
+				&c.Left,
+				&c.Right,
 				&c.Ctime,
 				&c.Mtime,
+				&c.Text,
 				&c.Website,
 				&c.Author,
 				&c.EMail,
-				&c.Site,
 			)
 			if err != nil {
 				panic(err)
@@ -56,56 +68,106 @@ func GetComments(quary string, quaryArgs ...interface{}) (comments []*Comment, e
 	return
 }
 
-func CreateComment(comment *Comment) (err error) {
+func CreateComment(c *Comment) (err error) {
 	now := time.Now()
-	comment.Ctime = now
-	comment.Mtime = now
+	c.Ctime = now
+	c.Mtime = now
 
 	err = tx(func(t *sql.Tx) {
+
+		if c.ResponseTo != nil {
+			row := t.QueryRow(`
+				SELECT thread_id, right
+				FROM comment
+				WHERE id = ? AND site = ?`,
+				c.ResponseTo,
+				c.Site,
+			)
+			var threadId, right int64
+			if err := row.Scan(&threadId, &right); err != nil {
+				panic(err)
+			}
+			_, err := t.Exec(`
+				UPDATE comment
+				SET left = left + 2
+				WHERE thread_id = ? AND left > ?;
+				UPDATE comment
+				SET right = right + 2
+				WHERE thread_id = ? AND right >= ?;`,
+				threadId,
+				right,
+				threadId,
+				right,
+			)
+			if err != nil {
+				panic(err)
+			}
+			c.Left = right
+			c.Right = right + 1
+			c.ThreadId = threadId
+		} else {
+			c.Left = 0
+			c.Right = 1
+		}
+
 		res, err := t.Exec(`
 			INSERT INTO comment
-			(text, ctime, mtime, website, author, email, site)
+			(
+				site, thread_id, response_to, left, right, ctime, mtime, text,
+				website, author, email
+			)
 			VALUES
-			(?, ?, ?, ?, ?, ?, ?);`,
-
-			comment.Text,
-			comment.Ctime,
-			comment.Mtime,
-			comment.Website,
-			comment.Author,
-			comment.EMail,
-			comment.Site,
+			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+			&c.Site,
+			&c.ThreadId,
+			&c.ResponseTo,
+			&c.Left,
+			&c.Right,
+			&c.Ctime,
+			&c.Mtime,
+			&c.Text,
+			&c.Website,
+			&c.Author,
+			&c.EMail,
 		)
 		if err != nil {
 			panic(err)
 		}
 
-		comment.Id, err = res.LastInsertId()
+		c.Id, err = res.LastInsertId()
 		if err != nil {
 			panic(err)
+		}
+
+		if c.ResponseTo == nil {
+			c.ThreadId = c.Id
+
+			_, err := t.Exec(`
+				UPDATE comment
+				SET thread_id = ?
+				WHERE id = ?;`,
+				c.ThreadId,
+				c.Id,
+			)
+			if err != nil {
+				panic(err)
+			}
 		}
 	})
 
 	return
 }
 
-func EditComment(comment *Comment) (err error) {
+func EditComment(c *Comment) (err error) {
+	c.Mtime = time.Now()
 	err = tx(func(t *sql.Tx) {
 		_, err := t.Exec(`
 			UPDATE comment
 			SET
-				text = ?, ctime = ?, mtime = ?, website = ?, author = ?, email = ?,
-				site = ?,
+				mtime = ?, text = ?,
 			WHERE id = ?;`,
-
-			comment.Text,
-			comment.Ctime,
-			comment.Mtime,
-			comment.Website,
-			comment.Author,
-			comment.EMail,
-			comment.Site,
-			comment.Id,
+			&c.Mtime,
+			&c.Text,
 		)
 
 		if err != nil {
@@ -119,8 +181,8 @@ func EditComment(comment *Comment) (err error) {
 func DeleteComment(id int) (err error) {
 	err = tx(func(t *sql.Tx) {
 		_, err := t.Exec(`
-		DELETE FROM comment
-		WHERE id = ?;`,
+			DELETE FROM comment
+			WHERE id = ?;`,
 			id,
 		)
 
