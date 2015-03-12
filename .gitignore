@@ -1,0 +1,5 @@
+/gopath/bin/
+/gopath/nut/
+/gopath/pkg/
+/main
+/database.sqlite

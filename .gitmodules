@@ -1,0 +1,9 @@
+[submodule "gopath/src/github.com/gorilla/mux"]
+	path = gopath/src/github.com/gorilla/mux
+	url = https://github.com/gorilla/mux.git
+[submodule "gopath/src/github.com/gorilla/context"]
+	path = gopath/src/github.com/gorilla/context
+	url = https://github.com/gorilla/context.git
+[submodule "gopath/src/github.com/mattn/go-sqlite3"]
+	path = gopath/src/github.com/mattn/go-sqlite3
+	url = https://github.com/mattn/go-sqlite3
