@@ -8,6 +8,7 @@ build:
 
 deps:
 	go install github.com/gorilla/mux
+	go install github.com/gorilla/context
 	go install github.com/mattn/go-sqlite3
 
 fmt:
