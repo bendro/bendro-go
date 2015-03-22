@@ -21,6 +21,8 @@ type Comment struct {
 }
 
 func GetComments(site string) (comments []*Comment, err error) {
+	comments = make([]*Comment, 0, 16)
+
 	err = tx(func(t *sql.Tx) {
 		rows, err := t.Query(`
 			SELECT
