@@ -7,3 +7,6 @@
 [submodule "gopath/src/github.com/mattn/go-sqlite3"]
 	path = gopath/src/github.com/mattn/go-sqlite3
 	url = https://github.com/mattn/go-sqlite3
+[submodule "gopath/src/github.com/gorilla/securecookie"]
+	path = gopath/src/github.com/gorilla/securecookie
+	url = https://github.com/gorilla/securecookie.git
